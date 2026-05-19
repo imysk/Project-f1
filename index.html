@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>F1 Live Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    /* ── TOKENS ─────────────────────────────────────────── */
+    :root {
+      --red:        #E8002D;
+      --red-dim:    #7a0016;
+      --gold:       #FFD700;
+      --green:      #00D47B;
+      --purple:     #9B59FF;
+      --yellow:     #FFC906;
+
+      /* dark theme (default) */
+      --bg:         #0a0a0a;
+      --bg-card:    #111111;
+      --bg-elevated:#1a1a1a;
+      --border:     rgba(255,255,255,0.07);
+      --border-accent: rgba(232,0,45,0.4);
+      --text-primary:  #f0f0f0;
+      --text-secondary:#888;
+      --text-dim:      #555;
+      --header-bg:  rgba(10,10,10,0.92);
+    }
+
+    [data-theme="light"] {
+      --bg:         #f5f5f5;
+      --bg-card:    #ffffff;
+      --bg-elevated:#ececec;
+      --border:     rgba(0,0,0,0.08);
+      --border-accent: rgba(232,0,45,0.3);
+      --text-primary:  #111111;
+      --text-secondary:#555;
+      --text-dim:      #aaa;
+      --header-bg:  rgba(245,245,245,0.92);
+    }
+
+    /* ── RESET ──────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Barlow', sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+      transition: background 0.3s, color 0.3s;
+      overflow-x: hidden;
+    }
+
+    /* ── HEADER ─────────────────────────────────────────── */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--header-bg);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo-mark {
+      width: 28px;
+      height: 28px;
+      background: var(--red);
+      clip-path: polygon(0 0, 80% 0, 100% 50%, 80% 100%, 0 100%, 20% 50%);
+      flex-shrink: 0;
+    }
+    .logo-text {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--text-primary);
+    }
+    .logo-text span { color: var(--red); }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    /* mode pill */
+    .mode-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+    }
+    .mode-pill.live { border-color: var(--red); color: var(--red); }
+    .mode-pill.live .dot { background: var(--red); animation: pulse 1.2s infinite; }
+    .mode-pill .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--text-dim);
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.4; transform: scale(0.8); }
+    }
+
+    /* theme toggle */
+    .theme-toggle {
+      width: 36px; height: 36px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+      transition: border-color 0.2s, background 0.2s;
+      color: var(--text-secondary);
+    }
+    .theme-toggle:hover { border-color: var(--red); color: var(--text-primary); }
+
+    /* nav tabs */
+    nav { display: flex; gap: 4px; }
+    .nav-tab {
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      letter-spacing: 0.02em;
+      transition: all 0.15s;
+    }
+    .nav-tab:hover { color: var(--text-primary); background: var(--bg-elevated); }
+    .nav-tab.active { background: var(--red); color: #fff; }
+
+    /* ── MAIN LAYOUT ─────────────────────────────────────── */
+    main { padding: 20px 24px 24px; }
+
+    /* ── NO-RACE VIEW ───────────────────────────────────── */
+    #view-norace { display: flex; flex-direction: column; gap: 20px; }
+
+    .standings-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    /* standings table */
+    .standings-table { width: 100%; }
+    .standings-row-item {
+      display: grid;
+      grid-template-columns: 32px 1fr auto auto;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 18px;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+    .standings-row-item:last-child { border-bottom: none; }
+    .standings-row-item:hover { background: var(--bg-elevated); }
+    .pos {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text-dim);
+      text-align: center;
+    }
+    .pos.top3 { color: var(--gold); font-weight: 700; }
+    .driver-name {
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .driver-team {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+    .team-dot {
+      width: 3px;
+      height: 28px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+    .points {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    /* last race */
+    .race-list { padding: 8px 0; }
+    .race-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .race-item:last-child { border-bottom: none; }
+    .race-item:hover { background: var(--bg-elevated); }
+    .race-item-left { display: flex; flex-direction: column; gap: 3px; }
+    .race-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+    .race-date {
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .race-winner {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    .race-winner span { color: var(--green); font-weight: 600; }
+    .chevron { color: var(--text-dim); font-size: 14px; }
+
+    /* news */
+    .news-list { padding: 8px 0; }
+    .news-item {
+      display: flex;
+      gap: 14px;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.15s;
+      text-decoration: none;
+      color: inherit;
+    }
+    .news-item:last-child { border-bottom: none; }
+    .news-item:hover { background: var(--bg-elevated); }
+    .news-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--red);
+      flex-shrink: 0;
+      margin-top: 6px;
+    }
+    .news-title { font-size: 13px; font-weight: 500; line-height: 1.4; }
+    .news-meta { font-size: 11px; color: var(--text-secondary); margin-top: 3px; font-family: 'JetBrains Mono', monospace; }
+
+    /* ── RACE VIEW ───────────────────────────────────────── */
+    #view-race { display: none; flex-direction: column; gap: 16px; }
+    #view-race.active { display: flex; }
+    #view-norace.active { display: flex; }
+
+    .race-grid {
+      display: grid;
+      grid-template-columns: 280px 1fr 300px;
+      gap: 16px;
+      height: calc(100vh - 160px);
+      min-height: 520px;
+    }
+
+    /* tower */
+    .tower { overflow-y: auto; }
+    .tower-row {
+      display: grid;
+      grid-template-columns: 24px 8px 1fr auto;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+      cursor: default;
+    }
+    .tower-row:hover { background: var(--bg-elevated); }
+    .tower-pos {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-dim);
+      text-align: right;
+    }
+    .tower-pos.p1 { color: var(--gold); }
+    .tower-color-bar { width: 3px; height: 32px; border-radius: 2px; }
+    .tower-driver { display: flex; flex-direction: column; gap: 2px; }
+    .tower-driver-code {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+    .tower-driver-info {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      color: var(--text-secondary);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .tyre-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      font-size: 9px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .tyre-S { background: var(--red); color: #fff; }
+    .tyre-M { background: var(--gold); color: #000; }
+    .tyre-H { background: #ccc; color: #000; }
+    .tyre-I { background: #00b4d8; color: #fff; }
+    .tyre-W { background: #0077b6; color: #fff; }
+
+    .tower-gap {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-align: right;
+    }
+    .tower-gap.leader { color: var(--gold); font-weight: 700; }
+
+    /* track map */
+    .track-map-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .track-map-body {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      position: relative;
+    }
+    #track-svg-container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #track-svg-container svg {
+      max-width: 100%;
+      max-height: 100%;
+    }
+
+    /* sector times */
+    .sectors { overflow-y: auto; }
+    .sector-row {
+      padding: 8px 14px;
+      border-bottom: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: 1fr repeat(3, auto);
+      gap: 8px;
+      align-items: center;
+    }
+    .sector-driver-name {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+    .sector-time {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-align: center;
+      font-weight: 500;
+    }
+    .sector-time.purple { background: rgba(155,89,255,0.2); color: var(--purple); }
+    .sector-time.green  { background: rgba(0,212,123,0.15); color: var(--green); }
+    .sector-time.yellow { background: rgba(255,201,6,0.12); color: var(--yellow); }
+    .sector-time.default { background: var(--bg-elevated); color: var(--text-secondary); }
+
+    /* tyre inventory strip */
+    .tyre-strip {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 18px;
+    }
+    .tyre-strip-inner {
+      display: flex;
+      gap: 24px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .tyre-driver-block { flex-shrink: 0; }
+    .tyre-driver-label {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+    .tyre-sets {
+      display: flex;
+      gap: 4px;
+    }
+    .tyre-set {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      font-size: 9px;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      border: 1.5px solid transparent;
+    }
+    .tyre-set.used { opacity: 0.35; }
+    .tyre-set.S { background: rgba(232,0,45,0.15); border-color: var(--red); color: var(--red); }
+    .tyre-set.M { background: rgba(255,215,0,0.12); border-color: var(--gold); color: var(--gold); }
+    .tyre-set.H { background: rgba(200,200,200,0.1); border-color: #aaa; color: #aaa; }
+
+    /* ── RACE RESULT MODAL ──────────────────────────────── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      width: 480px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .modal-header {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      background: var(--bg-card);
+    }
+    .modal-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+    .modal-close {
+      width: 28px; height: 28px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      color: var(--text-secondary);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+    }
+    .modal-close:hover { color: var(--text-primary); }
+    .result-row {
+      display: grid;
+      grid-template-columns: 28px 8px 1fr auto auto;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .result-row:last-child { border-bottom: none; }
+    .result-pos { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); text-align: right; }
+    .result-pos.podium { color: var(--gold); font-weight: 700; }
+    .result-name { font-weight: 500; }
+    .result-time { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-secondary); }
+    .result-pts { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: var(--text-primary); }
+
+    /* ── RESPONSIVE ─────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .standings-row { grid-template-columns: 1fr; }
+      .race-grid {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto;
+        height: auto;
+      }
+      .tower, .sectors { max-height: 300px; }
+      header { padding: 0 12px; }
+      main { padding: 12px; }
+      nav .nav-tab { padding: 5px 10px; font-size: 12px; }
+    }
+
+    /* ── UTILITY ─────────────────────────────────────────── */
+    .separator { height: 1px; background: var(--border); margin: 4px 0; }
+    .fade-in { animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="logo-mark"></div>
+      <div class="logo-text">APEX<span>LIVE</span></div>
+    </div>
+
+    <nav>
+      <button class="nav-tab active" onclick="switchView('norace')">Season</button>
+      <button class="nav-tab" onclick="switchView('race')">Race</button>
+    </nav>
+
+    <div class="header-right">
+      <div class="mode-pill" id="mode-pill">
+        <div class="dot"></div>
+        <span id="mode-label">NO SESSION</span>
+      </div>
+      <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+        <span id="theme-icon">☀️</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main>
+
+    <!-- ── NO-RACE VIEW ── -->
+    <div id="view-norace" class="active fade-in">
+
+      <!-- Standings -->
+      <div class="standings-row">
+        <!-- Driver Championship -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Driver Championship</span>
+            <span style="font-size:11px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;">2025</span>
+          </div>
+          <div class="standings-table" id="driver-standings">
+            <!-- populated by JS -->
+          </div>
+        </div>
+
+        <!-- Constructor Championship -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Constructor Championship</span>
+            <span style="font-size:11px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;">2025</span>
+          </div>
+          <div class="standings-table" id="constructor-standings">
+          </div>
+        </div>
+      </div>
+
+      <!-- Last Race Results -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Race Results — 2025</span>
+        </div>
+        <div class="race-list" id="race-list">
+          <!-- populated by JS -->
+        </div>
+      </div>
+
+      <!-- News -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Latest News</span>
+          <span style="font-size:11px;color:var(--text-dim);">via formula1.com</span>
+        </div>
+        <div class="news-list" id="news-list">
+          <!-- populated by JS -->
+        </div>
+      </div>
+
+    </div><!-- /view-norace -->
+
+    <!-- ── RACE VIEW ── -->
+    <div id="view-race" class="fade-in">
+      <div class="race-grid">
+
+        <!-- LEFT: Tower -->
+        <div class="card tower" id="live-tower">
+          <div class="card-header" style="position:sticky;top:0;background:var(--bg-card);z-index:10;">
+            <span class="card-title">Live Tower</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-secondary);" id="lap-counter">LAP — / —</span>
+          </div>
+          <!-- tower rows injected here -->
+        </div>
+
+        <!-- CENTER: Track Map -->
+        <div class="track-map-card">
+          <div class="card-header">
+            <span class="card-title" id="circuit-name">Monaco Grand Prix</span>
+            <span style="font-size:11px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;" id="session-clock">00:00:00</span>
+          </div>
+          <div class="track-map-body">
+            <div id="track-svg-container">
+              <!-- Monaco SVG track will be injected here -->
+              <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg" id="track-svg">
+                <!-- Simplified Monaco outline -->
+                <path id="track-path"
+                  d="M200,40 L320,40 Q360,40 360,80 L360,120 Q360,150 330,160 L280,175 Q260,182 255,200 L255,240 Q255,260 240,270 L200,285 Q180,290 175,310 L175,340 Q175,360 155,365 L120,368 Q100,368 95,350 L90,300 Q88,280 100,265 L130,240 Q145,228 145,210 L145,180 Q145,160 130,150 L80,130 Q60,120 60,100 L60,80 Q60,55 85,45 L140,40 Z"
+                  fill="none"
+                  stroke="var(--border)"
+                  stroke-width="18"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M200,40 L320,40 Q360,40 360,80 L360,120 Q360,150 330,160 L280,175 Q260,182 255,200 L255,240 Q255,260 240,270 L200,285 Q180,290 175,310 L175,340 Q175,360 155,365 L120,368 Q100,368 95,350 L90,300 Q88,280 100,265 L130,240 Q145,228 145,210 L145,180 Q145,160 130,150 L80,130 Q60,120 60,100 L60,80 Q60,55 85,45 L140,40 Z"
+                  fill="none"
+                  stroke="var(--bg-elevated)"
+                  stroke-width="14"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <!-- Driver dots injected by JS -->
+                <g id="driver-dots"></g>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Sector Times -->
+        <div class="card sectors" id="sector-panel">
+          <div class="card-header" style="position:sticky;top:0;background:var(--bg-card);z-index:10;">
+            <span class="card-title">Sector Times</span>
+            <div style="display:flex;gap:6px;font-size:10px;font-family:'JetBrains Mono',monospace;">
+              <span style="color:var(--purple);">■ BEST</span>
+              <span style="color:var(--green);">■ PB</span>
+              <span style="color:var(--yellow);">■ —</span>
+            </div>
+          </div>
+          <!-- sector rows injected by JS -->
+        </div>
+
+      </div><!-- /race-grid -->
+
+      <!-- BOTTOM: Tyre Inventory -->
+      <div class="tyre-strip">
+        <div class="card-title" style="margin-bottom:10px;">Tyre Inventory</div>
+        <div class="tyre-strip-inner" id="tyre-inventory">
+          <!-- injected by JS -->
+        </div>
+      </div>
+
+    </div><!-- /view-race -->
+
+  </main>
+
+  <!-- RACE RESULT MODAL -->
+  <div class="modal-overlay" id="result-modal" onclick="closeModal(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title" id="modal-race-title">Race Results</div>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <script>
+  // ── THEME TOGGLE ──────────────────────────────────────
+  function toggleTheme() {
+    const html = document.documentElement;
+    const isDark = html.getAttribute('data-theme') === 'dark';
+    html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+    document.getElementById('theme-icon').textContent = isDark ? '🌙' : '☀️';
+  }
+
+  // ── VIEW SWITCH ───────────────────────────────────────
+  function switchView(view) {
+    document.getElementById('view-norace').classList.toggle('active', view === 'norace');
+    document.getElementById('view-race').classList.toggle('active', view === 'race');
+    document.querySelectorAll('.nav-tab').forEach((t,i) => t.classList.toggle('active', (i===0&&view==='norace')||(i===1&&view==='race')));
+    if (view === 'race') renderRaceView();
+  }
+
+  // ── TEAM COLORS ───────────────────────────────────────
+  const TEAM_COLORS = {
+    'Red Bull':     '#3671C6',
+    'Ferrari':      '#E8002D',
+    'Mercedes':     '#27F4D2',
+    'McLaren':      '#FF8000',
+    'Aston Martin': '#229971',
+    'Alpine':       '#FF87BC',
+    'Williams':     '#64C4FF',
+    'Haas':         '#B6BABD',
+    'Kick Sauber':  '#52E252',
+    'RB':           '#6692FF',
+  };
+
+  // ── TEAM NAME NORMALISER ──────────────────────────────
+  // Ergast uses full constructor names; map to our short keys
+  function normaliseTeam(name) {
+    if (!name) return 'Unknown';
+    if (name.includes('Red Bull'))     return 'Red Bull';
+    if (name.includes('Ferrari'))      return 'Ferrari';
+    if (name.includes('Mercedes'))     return 'Mercedes';
+    if (name.includes('McLaren'))      return 'McLaren';
+    if (name.includes('Aston'))        return 'Aston Martin';
+    if (name.includes('Alpine'))       return 'Alpine';
+    if (name.includes('Williams'))     return 'Williams';
+    if (name.includes('Haas'))         return 'Haas';
+    if (name.includes('Sauber') || name.includes('Kick')) return 'Kick Sauber';
+    if (name.includes('Racing Bulls') || name.includes('AlphaTauri') || name.includes('RB')) return 'RB';
+    return name;
+  }
+
+  // ── STATE ─────────────────────────────────────────────
+  let DRIVER_STANDINGS    = [];
+  let CONSTRUCTOR_STANDINGS = [];
+  let RACE_RESULTS        = [];   // { name, date, round, winner, results[] }
+  let RACE_CACHE          = {};   // round → full results (lazy loaded)
+
+  // ── ERGAST FETCH HELPERS ──────────────────────────────
+  const ERGAST = 'https://api.jolpi.ca/ergast/f1';
+
+  async function fetchDriverStandings() {
+    const r = await fetch(`${ERGAST}/2025/driverStandings.json`);
+    const j = await r.json();
+    const list = j.MRData.StandingsTable.StandingsLists[0]?.DriverStandings || [];
+    DRIVER_STANDINGS = list.map(d => ({
+      pos:  parseInt(d.position),
+      name: `${d.Driver.givenName} ${d.Driver.familyName}`,
+      team: normaliseTeam(d.Constructors[0]?.name),
+      pts:  parseFloat(d.points),
+      code: d.Driver.code || d.Driver.familyName.slice(0,3).toUpperCase(),
+    }));
+  }
+
+  async function fetchConstructorStandings() {
+    const r = await fetch(`${ERGAST}/2025/constructorStandings.json`);
+    const j = await r.json();
+    const list = j.MRData.StandingsTable.StandingsLists[0]?.ConstructorStandings || [];
+    CONSTRUCTOR_STANDINGS = list.map(c => ({
+      pos:  parseInt(c.position),
+      name: normaliseTeam(c.Constructor.name),
+      pts:  parseFloat(c.points),
+    }));
+  }
+
+  async function fetchRaceList() {
+    const r = await fetch(`${ERGAST}/2025/results/1.json?limit=30`);
+    const j = await r.json();
+    const races = j.MRData.RaceTable.Races || [];
+    RACE_RESULTS = races.map(race => ({
+      name:   race.raceName,
+      date:   race.date,
+      round:  race.round,
+      winner: `${race.Results[0].Driver.givenName} ${race.Results[0].Driver.familyName}`,
+      results: [], // lazy loaded on click
+    }));
+  }
+
+  async function fetchRaceResults(round) {
+    if (RACE_CACHE[round]) return RACE_CACHE[round];
+    const r = await fetch(`${ERGAST}/2025/${round}/results.json`);
+    const j = await r.json();
+    const results = (j.MRData.RaceTable.Races[0]?.Results || []).map(res => ({
+      pos:    parseInt(res.position),
+      driver: `${res.Driver.givenName} ${res.Driver.familyName}`,
+      team:   normaliseTeam(res.Constructor.name),
+      time:   res.Time?.time || res.status || 'DNF',
+      pts:    parseFloat(res.points),
+    }));
+    RACE_CACHE[round] = results;
+    return results;
+  }
+
+  // ── LOADING STATE ─────────────────────────────────────
+  function setLoading(id, msg = 'Loading...') {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:12px;">${msg}</div>`;
+  }
+
+  function setError(id, msg) {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = `<div style="padding:20px;text-align:center;color:var(--red);font-size:12px;">${msg}</div>`;
+  }
+
+  // ── NEWS (static for now, RSS needs a proxy) ─────────
+  const NEWS = [
+    { title:'Follow Monaco Grand Prix weekend live on F1.com', source:'formula1.com', time:'Now' },
+    { title:'OpenF1 live timing active for Monaco GP',         source:'openf1.org',   time:'Now' },
+    { title:'News feed coming soon — RSS integration in V2',   source:'apexlive',     time:'—'  },
+  ];
+
+  // ── LIVE RACE MOCK ────────────────────────────────────
+  const LIVE_DRIVERS = [
+    { pos:1,  code:'LEC', team:'Ferrari',      gap:'LEADER', tyre:'M', tyreLap:18, pits:1, lastPit:'Lap 18', s1:'purple', s2:'green',  s3:'yellow' },
+    { pos:2,  code:'VER', team:'Red Bull',     gap:'+3.1',   tyre:'M', tyreLap:18, pits:1, lastPit:'Lap 18', s1:'green',  s2:'purple', s3:'green'  },
+    { pos:3,  code:'NOR', team:'McLaren',      gap:'+9.8',   tyre:'S', tyreLap:8,  pits:2, lastPit:'Lap 28', s1:'yellow', s2:'yellow', s3:'purple' },
+    { pos:4,  code:'SAI', team:'Ferrari',      gap:'+15.2',  tyre:'M', tyreLap:18, pits:1, lastPit:'Lap 18', s1:'green',  s2:'green',  s3:'green'  },
+    { pos:5,  code:'RUS', team:'Mercedes',     gap:'+22.0',  tyre:'H', tyreLap:30, pits:1, lastPit:'Lap 6',  s1:'yellow', s2:'yellow', s3:'yellow' },
+    { pos:6,  code:'HAM', team:'Mercedes',     gap:'+28.4',  tyre:'H', tyreLap:30, pits:1, lastPit:'Lap 6',  s1:'yellow', s2:'green',  s3:'yellow' },
+    { pos:7,  code:'PER', team:'Red Bull',     gap:'+35.1',  tyre:'S', tyreLap:5,  pits:2, lastPit:'Lap 31', s1:'green',  s2:'yellow', s3:'green'  },
+    { pos:8,  code:'PIA', team:'McLaren',      gap:'+41.7',  tyre:'M', tyreLap:18, pits:1, lastPit:'Lap 18', s1:'yellow', s2:'yellow', s3:'yellow' },
+    { pos:9,  code:'ALO', team:'Aston Martin', gap:'+48.2',  tyre:'H', tyreLap:36, pits:1, lastPit:'Lap 0',  s1:'yellow', s2:'yellow', s3:'yellow' },
+    { pos:10, code:'STR', team:'Aston Martin', gap:'+55.9',  tyre:'H', tyreLap:36, pits:1, lastPit:'Lap 0',  s1:'yellow', s2:'yellow', s3:'yellow' },
+  ];
+
+  const TYRE_INVENTORY = [
+    { code:'VER', sets:{ S:{ fresh:0, used:3 }, M:{ fresh:1, used:2 }, H:{ fresh:2, used:0 } } },
+    { code:'LEC', sets:{ S:{ fresh:1, used:2 }, M:{ fresh:0, used:3 }, H:{ fresh:2, used:0 } } },
+    { code:'NOR', sets:{ S:{ fresh:0, used:4 }, M:{ fresh:1, used:1 }, H:{ fresh:1, used:1 } } },
+    { code:'SAI', sets:{ S:{ fresh:1, used:2 }, M:{ fresh:1, used:2 }, H:{ fresh:2, used:0 } } },
+    { code:'RUS', sets:{ S:{ fresh:2, used:1 }, M:{ fresh:1, used:2 }, H:{ fresh:0, used:2 } } },
+  ];
+
+  // ── RENDER NO-RACE VIEW ───────────────────────────────
+  function renderDriverStandingsUI() {
+    const ds = document.getElementById('driver-standings');
+    if (!DRIVER_STANDINGS.length) { setError('driver-standings', 'No data'); return; }
+    ds.innerHTML = DRIVER_STANDINGS.map(d => `
+      <div class="standings-row-item">
+        <div class="pos ${d.pos<=3?'top3':''}">${d.pos}</div>
+        <div class="team-dot" style="background:${TEAM_COLORS[d.team]||'#888'}"></div>
+        <div>
+          <div class="driver-name">${d.name}</div>
+          <div class="driver-team">${d.team}</div>
+        </div>
+        <div class="points">${d.pts}</div>
+      </div>`).join('');
+  }
+
+  function renderConstructorStandingsUI() {
+    const cs = document.getElementById('constructor-standings');
+    if (!CONSTRUCTOR_STANDINGS.length) { setError('constructor-standings', 'No data'); return; }
+    cs.innerHTML = CONSTRUCTOR_STANDINGS.map(c => `
+      <div class="standings-row-item">
+        <div class="pos ${c.pos<=3?'top3':''}">${c.pos}</div>
+        <div class="team-dot" style="background:${TEAM_COLORS[c.name]||'#888'}"></div>
+        <div><div class="driver-name">${c.name}</div></div>
+        <div class="points">${c.pts}</div>
+      </div>`).join('');
+  }
+
+  function renderRaceListUI() {
+    const rl = document.getElementById('race-list');
+    if (!RACE_RESULTS.length) { setError('race-list', 'No races yet in 2025'); return; }
+    rl.innerHTML = RACE_RESULTS.map((r,i) => `
+      <div class="race-item" onclick="openModal(${i})">
+        <div class="race-item-left">
+          <div class="race-name">${r.name}</div>
+          <div class="race-date">${r.date}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="race-winner">🏆 <span>${r.winner}</span></div>
+          <div class="chevron">›</div>
+        </div>
+      </div>`).join('');
+  }
+
+  function renderNewsUI() {
+    const nl = document.getElementById('news-list');
+    nl.innerHTML = NEWS.map(n => `
+      <div class="news-item">
+        <div class="news-dot"></div>
+        <div>
+          <div class="news-title">${n.title}</div>
+          <div class="news-meta">${n.source} · ${n.time}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  async function renderNoRace() {
+    // Show loading states
+    setLoading('driver-standings', 'Fetching standings...');
+    setLoading('constructor-standings', 'Fetching standings...');
+    setLoading('race-list', 'Fetching race results...');
+    renderNewsUI();
+
+    try {
+      await Promise.all([
+        fetchDriverStandings(),
+        fetchConstructorStandings(),
+        fetchRaceList(),
+      ]);
+      renderDriverStandingsUI();
+      renderConstructorStandingsUI();
+      renderRaceListUI();
+    } catch(e) {
+      console.error(e);
+      setError('driver-standings', 'Failed to load — check console');
+      setError('constructor-standings', 'Failed to load');
+      setError('race-list', 'Failed to load');
+    }
+  }
+
+  // ── RENDER RACE VIEW ──────────────────────────────────
+  function renderRaceView() {
+    // Tower
+    const tower = document.getElementById('live-tower');
+    const header = tower.querySelector('.card-header');
+    tower.innerHTML = '';
+    tower.appendChild(header);
+    LIVE_DRIVERS.forEach(d => {
+      const row = document.createElement('div');
+      row.className = 'tower-row';
+      row.innerHTML = `
+        <div class="tower-pos ${d.pos===1?'p1':''}">${d.pos}</div>
+        <div class="tower-color-bar" style="background:${TEAM_COLORS[d.team]||'#888'}"></div>
+        <div class="tower-driver">
+          <div class="tower-driver-code">${d.code}</div>
+          <div class="tower-driver-info">
+            <span class="tyre-badge tyre-${d.tyre}">${d.tyre}</span>
+            <span>${d.tyreLap}L</span>
+            <span>·</span>
+            <span>${d.pits} pit${d.pits!==1?'s':''}</span>
+          </div>
+        </div>
+        <div class="tower-gap ${d.pos===1?'leader':''}">${d.gap}</div>`;
+      tower.appendChild(row);
+    });
+
+    // Sector times
+    const sp = document.getElementById('sector-panel');
+    const sHeader = sp.querySelector('.card-header');
+    sp.innerHTML = '';
+    sp.appendChild(sHeader);
+    LIVE_DRIVERS.forEach(d => {
+      const row = document.createElement('div');
+      row.className = 'sector-row';
+      row.innerHTML = `
+        <div class="sector-driver-name" style="color:${TEAM_COLORS[d.team]||'var(--text-primary)'}">${d.code}</div>
+        <div class="sector-time ${d.s1}">S1</div>
+        <div class="sector-time ${d.s2}">S2</div>
+        <div class="sector-time ${d.s3}">S3</div>`;
+      sp.appendChild(row);
+    });
+
+    // Tyre inventory
+    const ti = document.getElementById('tyre-inventory');
+    ti.innerHTML = TYRE_INVENTORY.map(d => {
+      const sets = ['S','M','H'].map(c => {
+        const info = d.sets[c];
+        const fresh = Array(info.fresh).fill(`<div class="tyre-set ${c}">${c}</div>`).join('');
+        const used  = Array(info.used).fill(`<div class="tyre-set used ${c}">${c}</div>`).join('');
+        return fresh + used;
+      }).join('');
+      return `<div class="tyre-driver-block">
+        <div class="tyre-driver-label">${d.code}</div>
+        <div class="tyre-sets">${sets}</div>
+      </div>`;
+    }).join('');
+
+    // Simple driver dots on track map
+    renderDriverDots();
+    document.getElementById('lap-counter').textContent = 'LAP 36 / 78';
+  }
+
+  // ── DRIVER DOTS ON MAP ────────────────────────────────
+  const DOT_POSITIONS = [
+    {code:'LEC',x:230,y:42},  {code:'VER',x:270,y:42},
+    {code:'NOR',x:310,y:55},  {code:'SAI',x:345,y:80},
+    {code:'RUS',x:358,y:115}, {code:'HAM',x:350,y:145},
+    {code:'PER',x:310,y:168}, {code:'PIA',x:268,y:185},
+    {code:'ALO',x:255,y:220}, {code:'STR',x:255,y:255},
+  ];
+
+  function renderDriverDots() {
+    const g = document.getElementById('driver-dots');
+    g.innerHTML = '';
+    DOT_POSITIONS.forEach(d => {
+      const driver = LIVE_DRIVERS.find(dr => dr.code === d.code);
+      const color = TEAM_COLORS[driver?.team] || '#888';
+      const g2 = document.createElementNS('http://www.w3.org/2000/svg','g');
+      g2.innerHTML = `
+        <circle cx="${d.x}" cy="${d.y}" r="9" fill="${color}" opacity="0.25"/>
+        <circle cx="${d.x}" cy="${d.y}" r="6" fill="${color}"/>
+        <text x="${d.x}" y="${d.y+3.5}" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="6" font-weight="700" fill="#fff">${d.code[0]}${d.code[1]}</text>`;
+      g.appendChild(g2);
+    });
+  }
+
+  // ── MODAL ─────────────────────────────────────────────
+  async function openModal(idx) {
+    const race = RACE_RESULTS[idx];
+    document.getElementById('modal-race-title').textContent = race.name;
+    document.getElementById('modal-body').innerHTML = `<div style="padding:20px;text-align:center;color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:12px;">Loading results...</div>`;
+    document.getElementById('result-modal').classList.add('open');
+
+    try {
+      const results = await fetchRaceResults(race.round);
+      document.getElementById('modal-body').innerHTML = results.map(r => `
+        <div class="result-row">
+          <div class="result-pos ${r.pos<=3?'podium':''}">${r.pos}</div>
+          <div class="team-dot" style="background:${TEAM_COLORS[r.team]||'#888'};height:36px;width:3px;border-radius:2px;"></div>
+          <div>
+            <div class="result-name">${r.driver}</div>
+            <div style="font-size:11px;color:var(--text-secondary);">${r.team}</div>
+          </div>
+          <div class="result-time">${r.time}</div>
+          <div class="result-pts">${r.pts}pts</div>
+        </div>`).join('');
+    } catch(e) {
+      document.getElementById('modal-body').innerHTML = `<div style="padding:20px;text-align:center;color:var(--red);font-size:12px;">Failed to load results</div>`;
+    }
+  }
+
+  function closeModal(e) {
+    if (!e || e.target === document.getElementById('result-modal')) {
+      document.getElementById('result-modal').classList.remove('open');
+    }
+  }
+
+  // ── INIT ──────────────────────────────────────────────
+  renderNoRace();
+  </script>
+</body>
+</html>
