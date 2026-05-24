@@ -474,9 +474,9 @@ let DRIVERS_MAP = {};   // driver_number → {code, team, name}
 let liveInterval = null;
 
 async function getLatestSession() {
-  const r = await fetch(`${F1_API}/sessions?year=2025&session_type=Race&circuit_short_name=monaco`);
+  const r = await fetch(`${F1_API}/sessions?session_key=latest`);
   const sessions = await r.json();
-  if (!sessions.length) throw new Error('No Monaco session found');
+  if (!sessions.length) throw new Error('No live session found');
   // get most recent
   sessions.sort((a,b) => new Date(b.date_start) - new Date(a.date_start));
   return sessions[0];
